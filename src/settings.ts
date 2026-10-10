@@ -78,6 +78,8 @@ export interface TerminalPluginSettings {
   wikiLinkInsertMode: WikiLinkInsertMode;
   clickableFilePaths: boolean;
   readlineShortcuts: boolean;
+  win32ControlSpace: boolean;
+  controlSpaceDiagnostics: boolean;
   keepFocusOnEscape: boolean;
   /** Show a one-time thank-you pop-up after minor or major updates. */
   showUpdateNotice: boolean;
@@ -123,6 +125,8 @@ export const DEFAULT_SETTINGS: TerminalPluginSettings = {
   wikiLinkInsertMode: "wikilink",
   clickableFilePaths: true,
   readlineShortcuts: true,
+  win32ControlSpace: true,
+  controlSpaceDiagnostics: false,
   keepFocusOnEscape: true,
   showUpdateNotice: true,
   lastSeenVersion: "",
@@ -326,6 +330,16 @@ export class TerminalSettingTab extends PluginSettingTab {
               "or the system default app (files outside the vault). URL and hyperlink clicking are unaffected. " +
               "Applies to all open and new tabs.",
             control: { type: "toggle", key: "clickableFilePaths" },
+          },
+          {
+            name: "Win32 Ctrl+Space",
+            desc: "Preserve Ctrl+Space in Windows ConPTY terminals after Win32 input mode is negotiated. Shell bindings are unchanged.",
+            control: { type: "toggle", key: "win32ControlSpace" },
+          },
+          {
+            name: "Ctrl+Space diagnostics",
+            desc: "Log only Ctrl+Space routing and protocol metadata in the developer console.",
+            control: { type: "toggle", key: "controlSpaceDiagnostics" },
           },
           {
             name: "Readline shortcuts",
@@ -977,6 +991,20 @@ export class TerminalSettingTab extends PluginSettingTab {
         }),
       );
 
+    new Setting(containerEl)
+      .setName("Win32 Ctrl+Space")
+      .setDesc("Preserve Ctrl+Space in Windows ConPTY terminals after Win32 input mode is negotiated.")
+      .addToggle(toggle => toggle.setValue(this.plugin.settings.win32ControlSpace).onChange(async value => {
+        this.plugin.settings.win32ControlSpace = value;
+        await this.plugin.saveSettings();
+      }));
+    new Setting(containerEl)
+      .setName("Ctrl+Space diagnostics")
+      .setDesc("Log only Ctrl+Space routing and protocol metadata in the developer console.")
+      .addToggle(toggle => toggle.setValue(this.plugin.settings.controlSpaceDiagnostics).onChange(async value => {
+        this.plugin.settings.controlSpaceDiagnostics = value;
+        await this.plugin.saveSettings();
+      }));
     new Setting(containerEl)
       .setName("Readline shortcuts")
       .setDesc(

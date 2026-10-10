@@ -1,4 +1,5 @@
-import { Notice, App, FileSystemAdapter, TFile } from "obsidian";
+import { installWin32ControlSpace } from "./win32-control-space";
+import { Notice, App, FileSystemAdapter, TFile, Platform } from "obsidian";
 import type { AppWithDrag, ElectronWithWebUtils, ElectronWithClipboard, FileWithPath } from "./obsidian-internals";
 import { Terminal, type ILink } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -951,6 +952,9 @@ export class TerminalTabManager {
       // Wire data: xterm -> PTY. Autocomplete may consume data (returns true) to
       // prevent keypress-echoed chars from reaching the PTY while active.
       terminal.onData((data: string) => {
+        if (this.settings.controlSpaceDiagnostics && (data === "\x00" || data === "\x1b[32;5u")) {
+          console.debug("[CtrlSpace]", { session: session.id, stage: "xterm-onData", encoding: data === "\x00" ? "NUL" : "CSI-u" });
+        }
         if (!session.autocomplete?.handleData(data)) pty.write(data);
       });
 
@@ -1010,6 +1014,13 @@ export class TerminalTabManager {
       toggleSearch,
     };
     session.parserDisposables.push(resultsDisposable);
+    if (Platform.isWin) {
+      session.parserDisposables.push(installWin32ControlSpace(terminal, data => pty.write(data), {
+        enabled: () => this.settings.win32ControlSpace,
+        diagnostics: () => this.settings.controlSpaceDiagnostics,
+        sessionId: session.id,
+      }));
+    }
 
     terminal.onSelectionChange(() => {
       if (!this.settings.copyOnSelect) return;

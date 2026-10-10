@@ -1,76 +1,26 @@
-/**
- * Installs the plugin into an Obsidian vault's .obsidian/plugins directory.
- *
- * Usage: node install.mjs [vault-path]
- * Default vault: D:\LOS Test
- */
+import { readFile, writeFile, copyFile, mkdir, stat } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 
-import { cpSync, mkdirSync, existsSync } from "fs";
-import { resolve, join } from "path";
-
-const vaultPath = process.argv[2] || "D:\\LOS Test";
-const pluginDir = join(vaultPath, ".obsidian", "plugins", "lean-terminal");
-
-if (!existsSync(join(vaultPath, ".obsidian"))) {
-  console.error(`Error: ${vaultPath} does not appear to be an Obsidian vault (no .obsidian folder)`);
-  process.exit(1);
+const args = process.argv.slice(2);
+const vault = args[args.indexOf("--vault") + 1];
+if (!args.includes("--vault") || !vault) throw new Error("Usage: node install.mjs --vault <vault-path>");
+const root = path.dirname(fileURLToPath(import.meta.url));
+const target = path.join(path.resolve(vault), ".obsidian/plugins/lean-terminal");
+const existing = JSON.parse(await readFile(path.join(target, "manifest.json"), "utf8"));
+if (existing.id !== "lean-terminal" || !["1.4.0", "1.5.0", "1.5.1"].includes(existing.version)) {
+  throw new Error("Install Lean Terminal 1.4.0 or 1.5.0 and its native binaries first. Unknown versions are not replaced.");
 }
-
-const srcDir = resolve(import.meta.dirname);
-
-// Create plugin directory
-mkdirSync(pluginDir, { recursive: true });
-
-// Copy essential files
+if (!(await stat(path.join(target, "node_modules/node-pty/lib/index.js"))).isFile()) throw new Error("Install Lean Terminal native binaries first.");
 const files = ["main.js", "manifest.json", "styles.css"];
-for (const file of files) {
-  const src = join(srcDir, file);
-  if (!existsSync(src)) {
-    console.error(`Error: ${file} not found. Run 'npm run build' first.`);
-    process.exit(1);
-  }
-  cpSync(src, join(pluginDir, file));
-  console.log(`  Copied ${file}`);
-}
-
-// Copy node-pty (native module needed at runtime)
-const nodePtySrc = join(srcDir, "node_modules", "node-pty");
-const nodePtyDest = join(pluginDir, "node_modules", "node-pty");
-
-if (existsSync(nodePtySrc)) {
-  // Copy lib first, then apply patch immediately (before prebuilds which may be locked)
-  mkdirSync(join(nodePtyDest, "lib"), { recursive: true });
-  cpSync(join(nodePtySrc, "lib"), join(nodePtyDest, "lib"), { recursive: true });
-
-  // Apply patch right away — if prebuilds copy fails below, the patch is still in place
-  const patchSrc = join(srcDir, "patches", "windowsConoutConnection.js");
-  if (existsSync(patchSrc)) {
-    cpSync(patchSrc, join(nodePtyDest, "lib", "windowsConoutConnection.js"));
-    console.log("  Applied ConoutConnection patch (no Worker threads)");
-  }
-
-  // Prebuilds (incl. prebuilds/<platform>-<arch>/conpty/) and package.json — may be locked if Obsidian has terminal open
-  let binaryWarning = false;
-  try {
-    cpSync(join(nodePtySrc, "prebuilds"), join(nodePtyDest, "prebuilds"), { recursive: true });
-  } catch {
-    binaryWarning = true;
-  }
-  try {
-    cpSync(join(nodePtySrc, "package.json"), join(nodePtyDest, "package.json"));
-  } catch {
-    binaryWarning = true;
-  }
-
-  if (binaryWarning) {
-    console.log("  Copied node-pty lib + patch (binaries locked by Obsidian — existing binaries unchanged)");
-  } else {
-    console.log("  Copied node-pty (prebuilt N-API binaries)");
-  }
-} else {
-  console.error("Error: node_modules/node-pty not found. Run 'npm install' first.");
-  process.exit(1);
-}
-
-console.log(`\nPlugin installed to: ${pluginDir}`);
-console.log("Restart Obsidian and enable the 'Terminal' plugin in Settings > Community Plugins.");
+const payload = Object.fromEntries(await Promise.all(files.map(async name => [name, await readFile(path.join(root, name))])));
+if (JSON.parse(payload["manifest.json"].toString()).version !== "1.5.1") throw new Error("Unexpected hotfix version.");
+const backup = path.join(path.resolve(vault), ".obsidian/plugin-backups/lean-terminal", randomUUID());
+await mkdir(backup, { recursive: true });
+for (const name of files) await copyFile(path.join(target, name), path.join(backup, name));
+await writeFile(path.join(backup, "destination.json"), JSON.stringify({ target }, null, 2));
+for (const name of files) await writeFile(path.join(target, name), payload[name]);
+console.log(`Installed in ${target}`);
+console.log(`Backup: ${backup}`);
+console.log("Reopen Obsidian. Settings and native binaries were preserved.");
