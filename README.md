@@ -15,6 +15,8 @@ and run with Node.js 22 or later:
 node install.mjs --vault "D:\Path\MyVault"
 ```
 
+For an already-built local checkout, run the same command from the repository root.
+
 Reopen Obsidian, enable Lean Terminal, select your Windows `nu.exe`, and leave
 **Win32 Ctrl+Space** enabled. The installer preserves settings and native
 binaries and backs up replaced plugin files. Existing Lean Terminal 1.4.0 and
