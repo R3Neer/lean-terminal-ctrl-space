@@ -32,8 +32,8 @@ and run with Node.js 22 or later:
 node install.mjs --vault "D:\Path\MyVault"
 ```
 
-The session-preserving toggle is currently available from source. To build the
-current plugin, run from this repository's root with Node.js 22 or later:
+To build the current plugin from source, run from this repository's root with
+Node.js 22 or later:
 
 ```console
 npm ci
@@ -43,8 +43,9 @@ node install.mjs --vault "D:\Path\MyVault"
 
 Reopen Obsidian, enable Lean Terminal, select your Windows `nu.exe`, and leave
 **Win32 Ctrl+Space** enabled. The installer preserves settings and native
-binaries and backs up replaced plugin files. Existing Lean Terminal 1.4.0 and
-1.5.0 installations are upgraded to this hotfix. Official plugin updates may
+binaries and backs up replaced plugin files. Existing Lean Terminal 1.4.0,
+1.5.0 and 1.5.1 installations can be upgraded to 2.0.0; reinstalling 2.0.0 is also
+supported. Official plugin updates may
 replace it; install the hotfix again only for a compatible version.
 
 Check with `keybindings listen`: pressing Ctrl+Space should report Space with
