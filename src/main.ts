@@ -11,6 +11,7 @@ import type { TerminalTabManager } from "./terminal-tab-manager";
 import { KeyHandlerRegistry, type TerminalKeyHandler } from "./key-handler-registry";
 import { requireNode } from "./node-api";
 import { pickTerminalLeaf } from "./terminal-leaf";
+import { TerminalVisibility } from "./terminal-visibility";
 import { resolveLastSeen, shouldShowNotice } from "./update-notice";
 import { UpdateNoticeModal } from "./update-notice-modal";
 
@@ -26,6 +27,7 @@ export default class TerminalPlugin extends Plugin {
   readonly keyHandlerRegistry = new KeyHandlerRegistry();
   private ribbonEl: HTMLElement | null = null;
   private themeObserver: MutationObserver | null = null;
+  private readonly terminalVisibility = new TerminalVisibility();
   /** False on a fresh install (no data.json yet); read by the update notice. */
   private hadSavedData = false;
 
@@ -75,6 +77,13 @@ export default class TerminalPlugin extends Plugin {
     this.registerView(VIEW_TYPE_TERMINAL, (leaf: WorkspaceLeaf) => {
       return new TerminalView(leaf, this);
     });
+
+    this.registerEvent(this.app.workspace.on("layout-change", () => {
+      this.terminalVisibility.reconcile(this.workspaceLeaves());
+    }));
+    this.registerEvent(this.app.workspace.on("active-leaf-change", leaf => {
+      if (leaf) this.terminalVisibility.show(leaf);
+    }));
 
     // Ribbon icon
     this.ribbonEl = this.addRibbonIcon(this.settings.ribbonIcon, "Open terminal", () => {
@@ -238,6 +247,7 @@ export default class TerminalPlugin extends Plugin {
   onunload(): void {
     this.themeObserver?.disconnect();
     this.themeObserver = null;
+    this.terminalVisibility.restoreAll();
     this.keyHandlerRegistry.clear();
 
     // Detach after a tick to avoid disrupting the settings modal
@@ -249,7 +259,8 @@ export default class TerminalPlugin extends Plugin {
   async activateTerminal(): Promise<void> {
     const existing = this.app.workspace.getLeavesOfType(VIEW_TYPE_TERMINAL);
     if (existing.length > 0) {
-      void this.app.workspace.revealLeaf(existing[0]);
+      this.terminalVisibility.show(existing[0]);
+      await this.app.workspace.revealLeaf(existing[0]);
       // Reveal alone does not move keyboard focus into the terminal, so the cursor
       // stays in the note editor. Make the leaf active with focus; TerminalView's
       // active-leaf-change handler then focuses the xterm input. This mirrors the
@@ -291,6 +302,7 @@ export default class TerminalPlugin extends Plugin {
   }
 
   closeTerminal(): void {
+    this.terminalVisibility.restoreAll();
     const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_TERMINAL);
     if (leaves.length > 0) {
       const view = leaves[0].view as TerminalView;
@@ -305,11 +317,27 @@ export default class TerminalPlugin extends Plugin {
 
   toggleTerminal(): void {
     const existing = this.app.workspace.getLeavesOfType(VIEW_TYPE_TERMINAL);
-    if (existing.length > 0) {
-      this.closeTerminal();
-    } else {
+    const leaf = existing.find(candidate => this.terminalVisibility.isHidden(candidate)) ?? this.getTargetTerminalLeaf();
+    if (!leaf) {
       void this.activateTerminal();
+    } else if (this.terminalVisibility.isHidden(leaf)) {
+      this.terminalVisibility.show(leaf);
+      void this.app.workspace.revealLeaf(leaf).then(() => {
+        this.app.workspace.setActiveLeaf(leaf, { focus: true });
+        leaf.onResize();
+        (leaf.view as TerminalView).getTabManager()?.focusActive();
+      });
+    } else {
+      const fallback = this.terminalVisibility.hide(leaf, this.workspaceLeaves());
+      if (fallback) this.app.workspace.setActiveLeaf(fallback, { focus: true });
+      else (activeDocument.activeElement as HTMLElement | null)?.blur();
     }
+  }
+
+  private workspaceLeaves(): WorkspaceLeaf[] {
+    const leaves: WorkspaceLeaf[] = [];
+    this.app.workspace.iterateAllLeaves(leaf => { leaves.push(leaf); });
+    return leaves;
   }
 
   /** The terminal pane a tab command should act on: focused pane, else active, else first (#104). */
@@ -368,7 +396,8 @@ export default class TerminalPlugin extends Plugin {
     const existing = this.app.workspace.getLeavesOfType(VIEW_TYPE_TERMINAL);
     if (existing.length > 0) {
       const view = existing[0].view as TerminalView;
-      void this.app.workspace.revealLeaf(existing[0]);
+      this.terminalVisibility.show(existing[0]);
+      await this.app.workspace.revealLeaf(existing[0]);
       view.createNewTab({ cwd });
       return;
     }

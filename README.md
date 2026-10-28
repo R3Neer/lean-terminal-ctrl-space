@@ -5,6 +5,18 @@ The hotfix preserves Space + CONTROL through ConPTY, so your existing Nushell
 bindings work without changes. It applies only to the focused terminal and only
 after Win32 keyboard mode negotiation. Other keys keep their normal handling.
 
+## Show and hide the terminal
+
+Bind **Lean Terminal: Toggle terminal** to F12 (or your preferred shortcut).
+Toggling hides the panel and restores the same terminal tabs, processes and
+scrollback. Output continues while hidden. If a panel also contains note tabs,
+it switches to a note instead of hiding that shared panel. **Close terminal**,
+closing an individual terminal tab, disabling the plugin and quitting Obsidian
+still end the affected sessions.
+
+Reload Obsidian once after installing this change. Save or finish running work
+first: the update cannot preserve processes across that initial reload.
+
 ## Install
 
 Install Lean Terminal and its native binaries in the vault first. Download and

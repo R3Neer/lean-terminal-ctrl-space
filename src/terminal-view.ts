@@ -99,6 +99,7 @@ export class TerminalView extends ItemView {
     this.resizeObserver = new ResizeObserver(() => {
       if (this.resizeTimer) window.clearTimeout(this.resizeTimer);
       this.resizeTimer = window.setTimeout(() => {
+        if (terminalHostEl.getClientRects().length === 0) return;
         this.tabManager?.fitActive();
         // Only restore focus if this leaf is active; prevent stealing focus during unrelated pane resizes
         if (this.isActive) {
@@ -114,7 +115,9 @@ export class TerminalView extends ItemView {
         this.isActive = leaf === this.leaf;
         if (!leaf || leaf !== this.leaf) return;
         // Defer so Obsidian's own leaf-switch focus logic completes first (prevents racing command palette)
-        window.setTimeout(() => this.tabManager?.focusActive(), 0);
+        window.setTimeout(() => {
+          if (this.containerEl.getClientRects().length > 0) this.tabManager?.focusActive();
+        }, 0);
       })
     );
 

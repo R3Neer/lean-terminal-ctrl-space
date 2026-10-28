@@ -694,3 +694,6 @@
   color: var(--text-faint);
   font-style: italic;
 }
+
+/* Toggle presentation without detaching leaves or stopping their PTYs. */
+.lean-terminal-collapsed { display: none !important; }
