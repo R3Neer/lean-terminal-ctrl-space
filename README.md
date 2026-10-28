@@ -1,9 +1,14 @@
-# Lean Terminal Ctrl+Space
+# Lean Terminal: Ctrl+Space and persistent toggle
 
-Fixes Ctrl+Space in local Windows Nushell sessions inside Obsidian Lean Terminal.
-The hotfix preserves Space + CONTROL through ConPTY, so your existing Nushell
-bindings work without changes. It applies only to the focused terminal and only
-after Win32 keyboard mode negotiation. Other keys keep their normal handling.
+An enhanced Lean Terminal for Obsidian with two focused improvements:
+
+- **Session-preserving toggle:** hide and show the terminal without restarting
+  shells, stopping running programs or losing scrollback. Output continues while
+  the panel is hidden.
+- **Windows Nushell Ctrl+Space:** preserve Space + CONTROL through ConPTY, so
+  existing Nushell bindings work unchanged. The fix applies only to the focused
+  terminal after Win32 keyboard mode negotiation; other keys keep their normal
+  handling.
 
 ## Show and hide the terminal
 
@@ -27,7 +32,14 @@ and run with Node.js 22 or later:
 node install.mjs --vault "D:\Path\MyVault"
 ```
 
-For an already-built local checkout, run the same command from the repository root.
+The session-preserving toggle is currently available from source. To build the
+current plugin, run from this repository's root with Node.js 22 or later:
+
+```console
+npm ci
+npm run build
+node install.mjs --vault "D:\Path\MyVault"
+```
 
 Reopen Obsidian, enable Lean Terminal, select your Windows `nu.exe`, and leave
 **Win32 Ctrl+Space** enabled. The installer preserves settings and native
